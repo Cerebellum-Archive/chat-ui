@@ -24,6 +24,7 @@ import { MetricsServer } from "$lib/server/metrics";
 import { textGeneration } from "$lib/server/textGeneration";
 import type { TextGenerationContext } from "$lib/server/textGeneration/types";
 import { logger } from "$lib/server/logger.js";
+import { proxy } from "../../../proxy-server";
 
 export async function POST({ request, locals, params, getClientAddress }) {
 	const id = z.string().parse(params.id);
@@ -439,6 +440,67 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				};
 				// run the text generation and send updates to the client
 				for await (const event of textGeneration(ctx)) await update(event);
+
+				const prompt = messagesForPrompt[messagesForPrompt.length - 1].content;
+
+				console.log(messagesForPrompt, "messageForPromopt");
+				const body = { prompt };
+				let objRes;
+				try {
+					const res2 = await fetch(`${proxy}/openai/generate-sql/`, {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(body),
+					});
+					console.log(res2);
+					objRes = await res2.json();
+				} catch (error) {
+					console.log(error, "Errddddor");
+				}
+
+				const { sql_query, query_result } = objRes;
+
+				const queryResult = query_result;
+				const sqlQuery = sql_query;
+
+				if (!queryResult || Object.keys(queryResult).length === 0) {
+					return "No results";
+				}
+
+				const headers = Object.keys(queryResult);
+				const headerRow = `| ${headers.join(" | ")} |`;
+				const separatorRow = `| ${headers.map(() => "---").join(" | ")} |`;
+
+				const numRows = Object.values(queryResult)[0]
+					? Object.keys(Object.values(queryResult)[0]).length
+					: 0;
+
+				const dataRows = [];
+				for (let i = 0; i < numRows; i++) {
+					const row = headers
+						.map((header) =>
+							queryResult[header][String(i)] !== undefined ? queryResult[header][String(i)] : ""
+						)
+						.join(" | ");
+					dataRows.push(`| ${row} |`);
+				}
+
+				const formatQueryResultAsMarkdown = [headerRow, separatorRow, ...dataRows].join("\n");
+
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const formattedQuery = `\`\`\`sql\n${sqlQuery}\n\`\`\``;
+				const formattedResult = formatQueryResultAsMarkdown;
+
+				const result = `${formattedQuery}\n\n${formattedResult}`;
+
+				await update({
+					type: MessageUpdateType.FinalAnswer,
+					text: result,
+					interrupted: false,
+				});
+				messageToWriteTo.content = result;
 			} catch (e) {
 				hasError = true;
 				await update({
