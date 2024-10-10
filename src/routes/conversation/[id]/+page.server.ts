@@ -5,7 +5,7 @@ import { authCondition } from "$lib/server/auth";
 import { UrlDependency } from "$lib/types/UrlDependency";
 import { convertLegacyConversation } from "$lib/utils/tree/convertLegacyConversation.js";
 
-export const load = async ({ params, depends, locals }) => {
+export const load = async ({ params, depends }) => {
 	let conversation;
 	let shared = false;
 
@@ -24,7 +24,7 @@ export const load = async ({ params, depends, locals }) => {
 		// todo: add validation on params.id
 		conversation = await collections.conversations.findOne({
 			_id: new ObjectId(params.id),
-			...authCondition(locals),
+			// ...authCondition(locals),
 		});
 
 		depends(UrlDependency.Conversation);
