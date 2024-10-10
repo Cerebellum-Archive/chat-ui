@@ -41,7 +41,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 	// check if the user has access to the conversation
 	const convBeforeCheck = await collections.conversations.findOne({
 		_id: convId,
-		...authCondition(locals),
+		// ...authCondition(locals),
 	});
 
 	if (convBeforeCheck && !convBeforeCheck.rootMessageId) {
@@ -64,7 +64,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 	const conv = await collections.conversations.findOne({
 		_id: convId,
-		...authCondition(locals),
+		// ...authCondition(locals),
 	});
 
 	if (!conv) {
